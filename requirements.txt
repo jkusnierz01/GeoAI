@@ -1,0 +1,7 @@
+requests==2.31.0
+h3==3.7.7
+pandas==2.2.2
+geopandas==1.0.1
+shapely==2.0.6
+geemap==0.36.6
+earthengine-api==1.6.14
