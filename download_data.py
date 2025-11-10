@@ -1,153 +1,271 @@
 import requests
 import h3
-import pandas as pd
 import geopandas as gpd
 from shapely.geometry import Point, Polygon
 import json
+import pandas as pd
 import time
 
+QUERIES = {
+    'health': [
+        ('amenity', 'hospital'),
+        ('amenity', 'pharmacy'),
+    ],
+    'services': [
+        ('amenity', 'bank'),
+        ('amenity', 'police'),
+    ],
+    'shops': [
+        ('shop', 'supermarket'),
+        ('shop', 'bakery'),
+        ('shop', 'greengrocer'),
+        ('shop', 'alcohol'),
+        ('shop', 'clothes'),
+    ],
+    'food_drink': [
+        ('amenity', 'restaurant'),
+        ('amenity', 'bar'),
+        ('amenity', 'nightclub'),
+    ],
+    'tourism': [
+        ('tourism', 'hotel'),
+        ('tourism', 'museum'),
+    ],
+    'landuse': [
+        ('landuse', 'cemetery'),
+        ('landuse', 'industrial'),
+    ],
+    'leisure': [
+        ('leisure', 'park'),
+        ('leisure', 'sports_centre'),
+        ('leisure', 'playground'),
+    ],
+    'buildings': [
+        ('building', 'office'),
+        ('building', 'house'),
+        ('building', 'apartments'),
+    ],
+    'transport': [
+        ('railway', 'station'),
+        ('railway', 'tram_stop'),
+        ('highway', 'bus_stop'),
+        ('aeroway', 'aerodrome'),
+    ],
+    'culture': [
+        ('amenity', 'cinema'),
+        ('amenity', 'theatre'),
+        ('amenity', 'library'),
+        ('amenity', 'place_of_worship'),
+        ('amenity', 'school'),
+    ],
+}
 
-# ==============================
-# CONFIGURATION
-# ==============================
+def fetch_category(category_name, tags, bbox, retry=0, max_retries=5):
+    """
+    Pobierz dane dla jednej kategorii z pełnym debugowaniem
+    """
+    if retry > max_retries:
+        print(f"✗ Przekroczono limit prób")
+        return []
+    
+    min_lat, min_lon, max_lat, max_lon = bbox
+    overpass_url = "http://overpass-api.de/api/interpreter"
+    
+   
+    if min_lat >= max_lat or min_lon >= max_lon:
+        print(f"✗ Błędny bbox: ({min_lat}, {min_lon}, {max_lat}, {max_lon})")
+        return []
+    
+    
+    query_parts = []
+    for key, value in tags:
+        query_parts.append(f'nwr["{key}"="{value}"]({min_lat}, {min_lon}, {max_lat}, {max_lon});')
+    
+    overpass_query = f'''
+[out:json][timeout:500];
+(
+  {chr(10).join(query_parts)}
+);
+out center;
+'''
+    
+    print(f"⏳ {category_name}...", end=" ")
+    
+    try:
+        response = requests.get(
+            overpass_url,
+            params={'data': overpass_query},
+            timeout=120,
+            headers={'User-Agent': 'GEO_AI/1.0'}
+        )
+        
+        
+        if response.status_code == 429:
+            wait_time = 30 + (10 * retry)  
+            print(f"⏱️  Rate limit - czekam {wait_time}s...")
+            time.sleep(wait_time)
+            return fetch_category(category_name, tags, bbox, retry + 1, max_retries)
+        
+        
+        if response.status_code == 504:
+            wait_time = 20 + (10 * retry)  
+            print(f"⏱️  504 Gateway Timeout - czekam {wait_time}s...")
+            time.sleep(wait_time)
+            return fetch_category(category_name, tags, bbox, retry + 1, max_retries)
+        
+        
+        if response.status_code == 503:
+            wait_time = 60 + (20 * retry) 
+            print(f"⏱️  503 Service Unavailable - czekam {wait_time}s...")
+            time.sleep(wait_time)
+            return fetch_category(category_name, tags, bbox, retry + 1, max_retries)
+        
+        if response.status_code != 200:
+            print(f"✗ HTTP {response.status_code}")
+            return []
+        
+        data = response.json()
+        count = len(data.get('elements', []))
+        print(f"✓ {count} elementów")
+        
+        time.sleep(2)
+        return data.get('elements', [])
+        
+    except json.JSONDecodeError as e:
+        print(f"✗ JSON Error: {e}")
+        print(f"   Response text: {response.text[:200] if response else 'None'}")
+        return []
+    except requests.exceptions.Timeout:
+        print(f"✗ Timeout")
+        return []
+    except requests.exceptions.ConnectionError:
+        print(f"✗ Connection error")
+        return []
+    except Exception as e:
+        print(f"✗ {type(e).__name__}: {e}")
+        return []
 
-OVERPASS_URL = "http://overpass-api.de/api/interpreter"
-AMENITY_TYPES = ["school", "hospital", "restaurant"]  # ← add any others here
-BOUNDING_BOXES = [
-    (50.0, 14.0, 50.5, 14.5),
-    (50.5, 14.5, 51.0, 15.0)
-]
-RESOLUTIONS = [7, 8, 9]
+
+bbox = (24.51, 46.42, 24.96, 47.01)
+#       min_lat  min_lon  max_lat  max_lon
+
+all_elements = []
+
+print(f"\n📍 Obszar: Lat({bbox[0]:.2f}, {bbox[2]:.2f}) Lon({bbox[1]:.2f}, {bbox[3]:.2f})\n")
+
+for category_name, tags in QUERIES.items():
+    elements = fetch_category(category_name, tags, bbox)
+    all_elements.extend(elements)
+    print() 
+
+print(f"\n{'='*50}")
+print(f"✓ Razem pobrano: {len(all_elements)} elementów")
+print(f"{'='*50}\n")
 
 
-# ==============================
-# FUNCTIONS
-# ==============================
+TAG_MAPPING = {
+    'amenity': {
+        'school', 'hospital', 'pharmacy', 'bank', 'restaurant', 
+        'bar', 'nightclub', 'police', 'cinema', 'theatre', 
+        'library', 'place_of_worship'
+    },
+    'shop': {
+        'supermarket', 'bakery', 'greengrocer', 'alcohol', 'clothes'
+    },
+    'tourism': {
+        'hotel', 'museum'
+    },
+    'landuse': {
+        'cemetery', 'industrial'
+    },
+    'leisure': {
+        'park', 'sports_centre', 'playground'
+    },
+    'building': {
+        'office', 'house', 'apartments'
+    },
+    'railway': {
+        'station', 'tram_stop'
+    },
+    'highway': {
+        'bus_stop'
+    },
+    'aeroway': {
+        'aerodrome'
+    }
+}
 
-def fetch_overpass_data(amenity: str, bbox: tuple, retries: int = 3, delay: int = 10) -> dict:
-    """Fetch data from Overpass API for a specific amenity type and bounding box."""
-    query = f'''
-    [out:json][timeout:60];
-    node["amenity"="{amenity}"]({bbox[0]},{bbox[1]},{bbox[2]},{bbox[3]});
-    out body;
-    '''
-    for attempt in range(1, retries + 1):
-        try:
-            response = requests.get(OVERPASS_URL, params={'data': query}, timeout=120)
-            response.raise_for_status()
-            return response.json()
-        except requests.exceptions.HTTPError as e:
-            if response.status_code in (504, 429):
-                print(f"Attempt {attempt}/{retries} failed (HTTP {response.status_code}). Retrying in {delay}s...")
-                time.sleep(delay)
-            else:
-                raise
-        except requests.exceptions.RequestException as e:
-            print(f"Network error on attempt {attempt}/{retries}: {e}. Retrying in {delay}s...")
-            time.sleep(delay)
-    raise ConnectionError("Overpass API request failed after multiple retries.")
+processed_data = []
 
+for element in all_elements:
+    tags = element.get('tags', {})
+    
+    if not tags:
+        continue
 
-def parse_overpass_points(data: dict, amenity: str) -> gpd.GeoDataFrame:
-    """Convert Overpass data to a GeoDataFrame with amenity type."""
-    points = [
-        {'id': el['id'], 'amenity': amenity, 'geometry': Point(el['lon'], el['lat'])}
-        for el in data.get('elements', [])
-        if 'lat' in el and 'lon' in el
-    ]
-    return gpd.GeoDataFrame(points, geometry='geometry', crs='EPSG:4326') if points else gpd.GeoDataFrame(columns=['id', 'amenity', 'geometry'])
+    lat, lon = None, None
+    main_category, specific_type = None, None
 
+    for key, value in tags.items():
+        if key in TAG_MAPPING and value in TAG_MAPPING[key]:
+            main_category = key
+            specific_type = value
+            break  
 
-def h3_to_polygon(h3_id: str) -> Polygon:
-    """Convert H3 hex ID to polygon."""
+    if not main_category:
+        continue
+
+    if element['type'] == 'node':
+        lat = element.get('lat')
+        lon = element.get('lon')
+    elif 'center' in element:
+        lat = element['center'].get('lat')
+        lon = element['center'].get('lon')
+
+    if lat is not None and lon is not None:
+        processed_data.append({
+            'geometry': Point(lon, lat),
+            'id': element['id'],
+            'object_type': f'{main_category}_{specific_type}'
+        })
+
+gdf = gpd.GeoDataFrame(processed_data, crs="EPSG:4326")
+
+print(f"✓ Przetworzono: {len(gdf)} obiektów")
+print(f"✓ Typy: {gdf['object_type'].nunique()}\n")
+print(gdf.head())
+
+resolutions = [7, 8]
+
+for resolution in resolutions:
+    gdf[f'h3_res_{resolution}'] = gdf.apply(
+        lambda row: h3.geo_to_h3(row.geometry.y, row.geometry.x, resolution), 
+        axis=1
+    )
+
+def h3_to_polygon(h3_id):
     boundary = h3.h3_to_geo_boundary(h3_id)
     coords = [(lon, lat) for lat, lon in boundary]
     return Polygon(coords)
 
+for resolution in resolutions:
+    counts_by_type = gdf.groupby([f'h3_res_{resolution}', 'object_type']).size()
+    counts_wide = counts_by_type.unstack(fill_value=0)
+    counts_wide = counts_wide.reset_index()
+    counts_wide['geometry'] = counts_wide[f'h3_res_{resolution}'].apply(h3_to_polygon)
+    counts_wide = gpd.GeoDataFrame(counts_wide, geometry='geometry', crs='EPSG:4326')
+    counts_wide['resolution'] = resolution
+    counts_wide = counts_wide.rename(columns={f'h3_res_{resolution}': 'h3_id'})
 
-def add_h3_indices(gdf: gpd.GeoDataFrame, resolutions: list[int]) -> gpd.GeoDataFrame:
-    """Add H3 indices for each resolution."""
-    for res in resolutions:
-        gdf[f'h3_res_{res}'] = gdf.apply(
-            lambda row: h3.geo_to_h3(row.geometry.y, row.geometry.x, res), axis=1
-        )
-    return gdf
+    geojson_data = json.loads(counts_wide.to_json(drop_id=True))
 
-
-def aggregate_amenities_by_h3(gdf: gpd.GeoDataFrame, resolution: int) -> gpd.GeoDataFrame:
-    """Aggregate counts of each amenity per H3 hex."""
-    grouped = (
-        gdf.groupby([f'h3_res_{resolution}', 'amenity'])
-        .size()
-        .reset_index(name='count')
-    )
-
-    # Pivot: one row per h3_id, with amenity counts as columns
-    pivot = grouped.pivot(index=f'h3_res_{resolution}', columns='amenity', values='count').fillna(0).reset_index()
-    pivot['total_count'] = pivot[AMENITY_TYPES].sum(axis=1)
-
-    # Add geometry
-    pivot['geometry'] = pivot[f'h3_res_{resolution}'].apply(h3_to_polygon)
-    pivot['resolution'] = resolution
-    pivot['h3_id'] = pivot[f'h3_res_{resolution}']
-
-    return gpd.GeoDataFrame(pivot, geometry='geometry', crs='EPSG:4326')
-
-
-def gdf_to_geojson(gdf: gpd.GeoDataFrame) -> dict:
-    """Convert GeoDataFrame to GeoJSON with cleaned coordinates."""
-    geojson_data = json.loads(gdf.to_json())
     for feature in geojson_data['features']:
         if feature['geometry']['type'] == 'Polygon':
             coords = feature['geometry']['coordinates']
-            if (len(coords) > 0 and isinstance(coords[0], list) and 
-                len(coords[0]) > 0 and isinstance(coords[0][0], list) and
-                len(coords[0][0]) > 0 and isinstance(coords[0][0][0], list)):
+            if len(coords) > 0 and isinstance(coords[0][0][0], list):
                 feature['geometry']['coordinates'] = coords[0]
-    return geojson_data
 
-
-def save_geojson(gdf: gpd.GeoDataFrame, resolution: int, filename_prefix: str = "amenities_hexagons"):
-    """Save GeoDataFrame to GeoJSON file."""
-    geojson_data = gdf_to_geojson(gdf)
-    filename = f"{filename_prefix}_res{resolution}.geojson"
-    with open(filename, "w") as f:
+    filename = f'riyadh_hexagons_res{resolution}.geojson'
+    with open(filename, 'w') as f:
         json.dump(geojson_data, f, indent=2)
-    print(f"✓ Saved: {filename}")
-
-
-# ==============================
-# MAIN
-# ==============================
-
-def main():
-    all_points = gpd.GeoDataFrame(columns=['id', 'amenity', 'geometry'])
-
-    for amenity in AMENITY_TYPES:
-        print(f"\nFetching data for amenity: {amenity}")
-        for bbox in BOUNDING_BOXES:
-            print(f"   → bbox: {bbox}")
-            try:
-                data = fetch_overpass_data(amenity, bbox)
-                gdf = parse_overpass_points(data, amenity)
-                all_points = pd.concat([all_points, gdf], ignore_index=True)
-            except Exception as e:
-                print(f"   Skipping bbox {bbox}: {e}")
-
-    if all_points.empty:
-        print("No data fetched at all.")
-        return
-
-    print("\nAdding H3 indices...")
-    all_points = add_h3_indices(all_points, RESOLUTIONS)
-
-    print("\nAggregating and saving results...")
-    for res in RESOLUTIONS:
-        agg = aggregate_amenities_by_h3(all_points, res)
-        save_geojson(agg, res)
-
-    print("\nDone!")
-
-
-if __name__ == "__main__":
-    main()
+    print(f"✓ Zapisano: {filename}")
