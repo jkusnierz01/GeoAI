@@ -1,6 +1,6 @@
 [submodule "scale-mae"]
 	path = scale-mae
 	url = https://github.com/bair-climate-initiative/scale-mae.git
-[submodule "graph-mae2"]
-	path = graph-mae2
-	url = https://github.com/THUDM/GraphMAE2
+[submodule "GraphMAE"]
+	path = GraphMAE
+	url = https://github.com/THUDM/GraphMAE.git
