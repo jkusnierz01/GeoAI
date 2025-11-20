@@ -1,8 +1,10 @@
 import logging
 import numpy as np
 from tqdm import tqdm
+import os
 import torch
 import warnings
+from torch_geometric.loader import DataLoader
 
 from graphmae.utils import (
     build_args,
@@ -17,28 +19,73 @@ from graphmae.models import build_model
 
 logging.basicConfig(format="%(asctime)s - %(levelname)s - %(message)s", level=logging.INFO)
 
+def load_graphs_from_folder(folder_path):
+    if not os.path.isdir(folder_path):
+        raise ValueError(f"Dataset folder does not exist: {folder_path}")
 
-def pretrain(model, graph, feat, optimizer, max_epoch, device, scheduler, num_classes, lr_f, weight_decay_f, max_epoch_f, linear_prob, logger=None):
+    # Collect .pt files
+    files = sorted([
+        os.path.join(folder_path, f)
+        for f in os.listdir(folder_path)
+        if f.endswith(".pt")
+    ])
+
+    if len(files) == 0:
+        raise ValueError(f"No .pt files found in dataset folder: {folder_path}")
+
+    print(f"Found {len(files)} graph files in folder: {folder_path}")
+    return files
+
+
+def prepare_graph(path):
+    graph = torch.load(path, map_location="cpu", weights_only=False)
+
+    num_nodes = graph.num_nodes
+
+    # Ensure y
+    if not hasattr(graph, 'y') or graph.y is None:
+        graph.y = torch.zeros(num_nodes, dtype=torch.long)
+
+    # Ensure train/val/test masks
+    if not hasattr(graph, 'train_mask'):
+        graph.train_mask = torch.ones(num_nodes, dtype=torch.bool)
+        graph.val_mask = torch.zeros(num_nodes, dtype=torch.bool)
+        graph.test_mask = torch.zeros(num_nodes, dtype=torch.bool)
+
+    # Fix edge_index shape
+    if graph.edge_index.shape[0] == 4:
+        warnings.warn(f"Graph's edge_index has shape {graph.edge_index.shape}. Slicing to [2, N] (taking first two rows).")
+        graph.edge_index = graph.edge_index[:2, :]
+    elif graph.edge_index.shape[0] != 2:
+        raise ValueError(
+            f"Graph's edge_index has unsupported shape: {graph.edge_index.shape}. "
+            "Expected [2, N]."
+        )
+
+    return graph
+
+
+def pretrain(model, graphs, optimizer, max_epoch, device, scheduler, num_classes, lr_f, weight_decay_f, max_epoch_f, linear_prob, logger=None):
     logging.info("start training..")
-    graph = graph.to(device)
-    x = feat.to(device)
+    loader = DataLoader(graphs, batch_size=1, shuffle=True)
 
     epoch_iter = tqdm(range(max_epoch))
 
     for epoch in epoch_iter:
-        model.train()
-        loss, loss_dict = model(x, graph.edge_index)
+        for batch in loader:
+            model.train()
+            loss, loss_dict = model(batch.x.to(device), batch.edge_index.to(device))
 
-        optimizer.zero_grad()
-        loss.backward()
-        optimizer.step()
-        if scheduler is not None:
-            scheduler.step()
+            optimizer.zero_grad()
+            loss.backward()
+            optimizer.step()
+            if scheduler is not None:
+                scheduler.step()
 
-        epoch_iter.set_description(f"# Epoch {epoch}: train_loss: {loss.item():.4f}")
-        if logger is not None:
-            loss_dict["lr"] = get_current_lr(optimizer)
-            logger.note(loss_dict, step=epoch)
+            epoch_iter.set_description(f"# Epoch {epoch}: train_loss: {loss.item():.4f}")
+            if logger is not None:
+                loss_dict["lr"] = get_current_lr(optimizer)
+                logger.note(loss_dict, step=epoch)
 
     return model
 
@@ -69,33 +116,11 @@ def main(args):
     use_scheduler = args.scheduler
 
     # Load custom dataset - START
-    original_graph_file = "graph_res7.pt" 
-    graph = torch.load(original_graph_file, map_location="cpu", weights_only=False)
-
-    num_nodes = graph.num_nodes
-    if not hasattr(graph, 'y') or graph.y is None:
-        print("--- Adding dummy labels (y) ---")
-        graph.y = torch.zeros(num_nodes, dtype=torch.long)
-    
-    if not hasattr(graph, 'train_mask'):
-        print("--- Adding dummy masks (train/val/test) ---")
-        graph.train_mask = torch.ones(num_nodes, dtype=torch.bool)
-        graph.val_mask = torch.zeros(num_nodes, dtype=torch.bool)
-        graph.test_mask = torch.zeros(num_nodes, dtype=torch.bool)
-
-    if graph.edge_index.shape[0] == 4:
-        warnings.warn(f"Graph's edge_index has shape {graph.edge_index.shape}. Slicing to [2, N] (taking first two rows).")
-        graph.edge_index = graph.edge_index[:2, :] 
-    elif graph.edge_index.shape[0] != 2:
-        raise ValueError(f"Graph's edge_index has unsupported shape: {graph.edge_index.shape}. Expected [2, N].")
-
-    num_features = graph.num_node_features
-    num_classes = int(graph.y.max().item()) + 1  # This now works
-    print(f"--- Graph prepared: {graph.num_nodes} nodes, {graph.edge_index.shape[1]} edges. ---")
-    print(f"--- Found {num_features} features and {num_classes} classes. ---")
-
-    args.num_features = num_features
-    args.num_classes = num_classes
+    dataset_path = args.dataset
+    graph_files = load_graphs_from_folder(dataset_path)
+    graphs = [prepare_graph(f) for f in graph_files]
+    args.num_classes = num_classes = max(graph.y.max().item() for graph in graphs) + 1
+    args.num_features = graphs[0].num_node_features
     # Load custom dataset - END
 
     for i, seed in enumerate(seeds):
@@ -120,9 +145,8 @@ def main(args):
         else:
             scheduler = None
             
-        x = graph.x
         if not load_model:
-            model = pretrain(model, graph, x, optimizer, max_epoch, device, scheduler, num_classes, lr_f, weight_decay_f, max_epoch_f, linear_prob, logger)
+            model = pretrain(model, graphs, optimizer, max_epoch, device, scheduler, num_classes, lr_f, weight_decay_f, max_epoch_f, linear_prob, logger)
             model = model.cpu()
 
         if save_model:
