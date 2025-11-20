@@ -1,2 +1,4 @@
 *.geojson
 *.pt
+/__pycache__/
+*.pyc

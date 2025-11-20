@@ -1,10 +1,9 @@
 import logging
 import numpy as np
 from tqdm import tqdm
-import os
 import torch
-import warnings
 from torch_geometric.loader import DataLoader
+from graph_utils import load_graphs_from_folder, prepare_graph
 
 from graphmae.utils import (
     build_args,
@@ -18,51 +17,6 @@ from graphmae.models import build_model
 
 
 logging.basicConfig(format="%(asctime)s - %(levelname)s - %(message)s", level=logging.INFO)
-
-def load_graphs_from_folder(folder_path):
-    if not os.path.isdir(folder_path):
-        raise ValueError(f"Dataset folder does not exist: {folder_path}")
-
-    # Collect .pt files
-    files = sorted([
-        os.path.join(folder_path, f)
-        for f in os.listdir(folder_path)
-        if f.endswith(".pt")
-    ])
-
-    if len(files) == 0:
-        raise ValueError(f"No .pt files found in dataset folder: {folder_path}")
-
-    print(f"Found {len(files)} graph files in folder: {folder_path}")
-    return files
-
-
-def prepare_graph(path):
-    graph = torch.load(path, map_location="cpu", weights_only=False)
-
-    num_nodes = graph.num_nodes
-
-    # Ensure y
-    if not hasattr(graph, 'y') or graph.y is None:
-        graph.y = torch.zeros(num_nodes, dtype=torch.long)
-
-    # Ensure train/val/test masks
-    if not hasattr(graph, 'train_mask'):
-        graph.train_mask = torch.ones(num_nodes, dtype=torch.bool)
-        graph.val_mask = torch.zeros(num_nodes, dtype=torch.bool)
-        graph.test_mask = torch.zeros(num_nodes, dtype=torch.bool)
-
-    # Fix edge_index shape
-    if graph.edge_index.shape[0] == 4:
-        warnings.warn(f"Graph's edge_index has shape {graph.edge_index.shape}. Slicing to [2, N] (taking first two rows).")
-        graph.edge_index = graph.edge_index[:2, :]
-    elif graph.edge_index.shape[0] != 2:
-        raise ValueError(
-            f"Graph's edge_index has unsupported shape: {graph.edge_index.shape}. "
-            "Expected [2, N]."
-        )
-
-    return graph
 
 
 def pretrain(model, graphs, optimizer, max_epoch, device, scheduler, num_classes, lr_f, weight_decay_f, max_epoch_f, linear_prob, logger=None):
@@ -92,6 +46,8 @@ def pretrain(model, graphs, optimizer, max_epoch, device, scheduler, num_classes
 
 def main(args):
     device = args.device if args.device >= 0 else "cpu"
+    device_name = torch.cuda.get_device_name(device) if torch.cuda.is_available() and device != "cpu" else "CPU"
+    print(f"Using device: {device_name}")
     seeds = args.seeds
     dataset_name = args.dataset
     max_epoch = args.max_epoch
@@ -115,13 +71,11 @@ def main(args):
     logs = args.logging
     use_scheduler = args.scheduler
 
-    # Load custom dataset - START
     dataset_path = args.dataset
     graph_files = load_graphs_from_folder(dataset_path)
     graphs = [prepare_graph(f) for f in graph_files]
     args.num_classes = num_classes = max(graph.y.max().item() for graph in graphs) + 1
     args.num_features = graphs[0].num_node_features
-    # Load custom dataset - END
 
     for i, seed in enumerate(seeds):
         print(f"####### Run {i} for seed {seed}")
