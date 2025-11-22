@@ -6,14 +6,56 @@ import torch
 import matplotlib.pyplot as plt
 from sklearn.manifold import TSNE
 
+from types import SimpleNamespace
+from omegaconf import OmegaConf
+
 from torch_geometric.nn import global_mean_pool
 from torch_geometric.utils import k_hop_subgraph
 
 from graph_utils import (
     load_graphs_from_folder,
     prepare_graph,
-    load_model_from_checkpoint,
+    build_model,
 )
+
+def load_model_from_checkpoint(checkpoint_path, num_features, num_classes, config_path="configs/defaults.yaml"):
+    """
+    Build model with parameters from config and load checkpoint weights.
+    """
+    cfg = OmegaConf.load(config_path)
+
+    args = SimpleNamespace(
+        num_features=num_features,
+        num_classes=num_classes,
+        encoder=cfg.encoder,
+        decoder=cfg.decoder,
+        num_hidden=cfg.num_hidden,
+        num_heads=cfg.num_heads,
+        num_out_heads=cfg.num_out_heads,
+        num_layers=cfg.num_layers,
+        attn_drop=cfg.attn_drop,
+        in_drop=cfg.in_drop,
+        residual=cfg.residual,
+        norm=cfg.norm,
+        negative_slope=cfg.negative_slope,
+        activation=cfg.activation,
+        mask_rate=cfg.mask_rate,
+        replace_rate=cfg.replace_rate,
+        alpha_l=cfg.alpha_l,
+        loss_fn=cfg.loss_fn,
+        concat_hidden=cfg.concat_hidden,
+        drop_edge_rate=cfg.drop_edge_rate,
+        pooling="mean",
+        deg4feat=False,
+    )
+
+    model = build_model(args)
+    state = torch.load(checkpoint_path, map_location="cpu")
+    model.load_state_dict(state)
+    model.eval()
+
+    print("--- Model successfully loaded ---")
+    return model
 
 
 def get_prefix(filename):
@@ -65,9 +107,7 @@ def main():
     num_features = graphs[0].num_node_features
     num_classes = max(g.y.max().item() for g in graphs) + 1
 
-    model = load_model_from_checkpoint(
-        args.model_path, num_features, num_classes
-    ).to(device)
+    model = load_model_from_checkpoint(args.model_path, num_features, num_classes, config_path="configs/defaults.yaml").to(device)
 
     embeddings = []
     color_ids = []
@@ -127,7 +167,7 @@ def main():
 
     plt.legend(handles, labels, title="Graph Groups", loc="best")
 
-    plt.show()
+    plt.savefig("tsne_embeddings.png", dpi=200, bbox_inches="tight")
 
 
 if __name__ == "__main__":
