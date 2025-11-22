@@ -73,7 +73,6 @@ def main():
             # Select columns
             g.x = g.x[:, indices_to_keep]
             
-            # Update metadata
             g.num_node_features = len(common_columns)
             g.feature_columns = common_columns
             
