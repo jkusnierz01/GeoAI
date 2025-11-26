@@ -4,7 +4,13 @@ from tqdm import tqdm
 import hydra
 import torch
 from torch_geometric.loader import DataLoader
-from graph_utils import load_graphs_from_folder, prepare_graph
+
+from utils.graph_utils import (
+    load_graphs_from_folder,
+    prepare_graph,
+    build_model,
+)
+
 from omegaconf import OmegaConf, DictConfig
 import rootutils
 import wandb

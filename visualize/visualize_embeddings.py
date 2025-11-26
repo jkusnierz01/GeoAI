@@ -10,52 +10,13 @@ from omegaconf import OmegaConf
 from graphmae.models import build_model
 import rootutils
 import contextily as cx
+from utils.model_utils import load_model_from_checkpoint
 
 ROOT = rootutils.setup_root(search_from=".", indicator=".project_root", pythonpath=True)
 GRAPH_PATH = ROOT / "dataset_aligned/berlin_hexagons_res8.pt"
 GEOJSON_PATH = ROOT / "geodata/berlin_hexagons_res8.geojson"
 MODEL_PATH = ROOT / "outputs/2025-11-22/21-20-43/checkpoint.pt"
 CONFIG_PATH = ROOT / "outputs/2025-11-22/21-20-43/.hydra/config.yaml"
-
-
-def load_model_from_checkpoint(checkpoint_path, num_features, config_path):
-    """Wczytuje model i jego wagi z punktu kontrolnego, używając konfiguracji."""
-    print(f"--- Loading config from: {config_path} ---")
-    cfg = OmegaConf.load(config_path)
-    
-
-    args = SimpleNamespace(
-        num_features=num_features,
-        num_classes=1,  
-        encoder=cfg.encoder,
-        decoder=cfg.decoder,
-        num_hidden=cfg.num_hidden,
-        num_heads=cfg.num_heads,
-        num_out_heads=cfg.num_out_heads,
-        num_layers=cfg.num_layers,
-        attn_drop=cfg.attn_drop,
-        in_drop=cfg.in_drop,
-        residual=cfg.residual,
-        norm=cfg.norm,
-        negative_slope=cfg.negative_slope,
-        activation=cfg.activation,
-        mask_rate=cfg.mask_rate,
-        replace_rate=cfg.replace_rate,
-        alpha_l=cfg.alpha_l,
-        loss_fn=cfg.loss_fn,
-        concat_hidden=cfg.concat_hidden,
-        drop_edge_rate=cfg.drop_edge_rate,
-        pooling="mean",
-        deg4feat=False,
-    )
-
-    model = build_model(args)
-    print(f"--- Loading model state from: {checkpoint_path} ---")
-    state = torch.load(checkpoint_path, map_location="cpu")
-    model.load_state_dict(state)
-    model.eval()
-    print("--- Model successfully loaded ---")
-    return model
 
 def get_all_node_embeddings(graph, model, device):
     """Generuje embeddingi dla wszystkich węzłów w danym grafie."""
