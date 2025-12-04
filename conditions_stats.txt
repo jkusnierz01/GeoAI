@@ -1,0 +1,6 @@
+clean-cloud: n=21, mean=0.5853, std=0.1143, min=0.4011, max=0.7776
+clean-winter: n=21, mean=0.4325, std=0.0930, min=0.2769, max=0.5665
+cloud-winter: n=21, mean=0.3521, std=0.0602, min=0.2708, max=0.4894
+random_clean-cloud: n=21, mean=0.5096, std=0.0744, min=0.3663, max=0.6637
+random_clean-winter: n=21, mean=0.3827, std=0.0703, min=0.2475, max=0.5007
+random_cloud-winter: n=21, mean=0.3424, std=0.0511, min=0.2542, max=0.4318
