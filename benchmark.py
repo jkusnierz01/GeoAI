@@ -2,8 +2,8 @@ import pandas as pd
 import numpy as np
 from sklearn.metrics import mean_absolute_error, r2_score, mean_squared_error, root_mean_squared_log_error
 
-benchmark = "san_francisco_crime"
-model_type = "LinearRegression"
+benchmark = "king_county"
+model_type = "XGBRegressor"
 
 if benchmark == "airbnb":
     from benchmarks.airbnb import name, prep_dataset, cats, drop, dataset_loader
@@ -27,6 +27,9 @@ elif model_type == "XGBRegressor":
 elif model_type == "LinearRegression":
     from sklearn.linear_model import LinearRegression
     model = LinearRegression()
+elif model_type == "DeepRegressor":
+    from benchmarks.DeepRegressor import DeepRegressor
+    model = DeepRegressor(epochs=50, lr=0.001, batch_size=32)
 else:
     raise ValueError(f"Unknown model type: {model_type}")
 

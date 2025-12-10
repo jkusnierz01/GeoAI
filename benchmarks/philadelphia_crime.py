@@ -2,7 +2,7 @@ import pandas as pd
 import h3
 from srai.datasets import PhiladelphiaCrimeDataset
 
-name = "Philadelphia Crime (Rich Features)"
+name = "Philadelphia Crime"
 dataset_loader = PhiladelphiaCrimeDataset()
 dataset_loader.target = 'count'
 RESOLUTION = 8
