@@ -5,3 +5,15 @@ geopandas==1.0.1
 shapely==2.0.6
 geemap==0.36.6
 earthengine-api==1.6.14
+wandb
+tqdm
+torch
+torch-geometric
+tensorboardX
+hydra-core
+rootutils
+omegaconf
+jupyter
+scipy
+scikit-learn
+contextily

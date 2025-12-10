@@ -6,43 +6,20 @@ import torch
 import matplotlib.pyplot as plt
 from sklearn.manifold import TSNE
 
+from types import SimpleNamespace
+from omegaconf import OmegaConf
+
 from torch_geometric.nn import global_mean_pool
 from torch_geometric.utils import k_hop_subgraph
 
-from graph_utils import (
+from utils.graph_utils import (
     load_graphs_from_folder,
     prepare_graph,
-    load_model_from_checkpoint,
+    build_model,
 )
 
-
-def get_prefix(filename):
-    """
-    For files like 'abc_res7.geojson' → return 'abc'.
-    """
-    base = os.path.basename(filename)
-    if "_res" in base:
-        return base.split("_res")[0]
-    return base.split(".")[0]
-
-
-def get_subgraph_embedding(full_graph, model, start_node_idx, k_hop, device):
-    start_node_tensor = torch.tensor([start_node_idx])
-    subset, edge_index, _, _ = k_hop_subgraph(
-        start_node_tensor, k_hop, full_graph.edge_index, relabel_nodes=True
-    )
-
-    x = full_graph.x[subset].to(device)
-    edge_index = edge_index.to(device)
-
-    batch = torch.zeros(x.size(0), dtype=torch.long, device=device)
-
-    with torch.no_grad():
-        node_embeds = model.embed(x, edge_index)
-
-    graph_embed = global_mean_pool(node_embeds, batch)
-    return graph_embed.cpu().numpy().flatten()
-
+from utils.model_utils import load_model_from_checkpoint, get_k_hop_subgraph_embedding
+from utils.file_utils import get_prefix
 
 def main():
     parser = argparse.ArgumentParser()
@@ -65,9 +42,10 @@ def main():
     num_features = graphs[0].num_node_features
     num_classes = max(g.y.max().item() for g in graphs) + 1
 
+    # Use the new load_model_from_checkpoint function
     model = load_model_from_checkpoint(
-        args.model_path, num_features, num_classes
-    ).to(device)
+        args.model_path, num_features, num_classes, config_path="configs/defaults.yaml", device=device
+    )
 
     embeddings = []
     color_ids = []
@@ -79,13 +57,10 @@ def main():
         color_id = prefix_to_color_id[prefix]
 
         num_nodes = graph.num_nodes
-
-        start_nodes = np.random.choice(
-            num_nodes, args.samples_per_graph, replace=True
-        )
+        start_nodes = np.random.choice(num_nodes, args.samples_per_graph, replace=True)
 
         for s in tqdm(start_nodes, desc=f"{prefix}"):
-            emb = get_subgraph_embedding(graph, model, s, args.k_hop, device)
+            emb = get_k_hop_subgraph_embedding(graph, model, s, args.k_hop, device)
             embeddings.append(emb)
             color_ids.append(color_id)
             file_groups.append(prefix)
@@ -126,8 +101,7 @@ def main():
         labels.append(prefix)
 
     plt.legend(handles, labels, title="Graph Groups", loc="best")
-
-    plt.show()
+    plt.savefig("tsne_embeddings.png", dpi=200, bbox_inches="tight")
 
 
 if __name__ == "__main__":
