@@ -1,4 +1,5 @@
 import os
+from omegaconf import DictConfig
 import torch
 from types import SimpleNamespace
 from omegaconf import OmegaConf
@@ -7,6 +8,7 @@ from torch_geometric.utils import k_hop_subgraph
 from utils.graph_utils import (
     build_model
 )
+import hydra
 
 def load_model_from_checkpoint(checkpoint_path, num_features, num_classes, config_path="configs/defaults.yaml", device="cpu"):
     """
@@ -74,3 +76,16 @@ def get_k_hop_subgraph_embedding(full_graph, model, start_node_idx, k_hop, devic
         node_embeds = model.embed(x, edge_index)
     graph_embed = global_mean_pool(node_embeds, batch)
     return graph_embed.cpu().numpy().flatten()
+
+
+def instantiate_callbacks(callbacks_cfg: DictConfig):
+    callbacks = []
+
+    if not isinstance(callbacks_cfg, DictConfig):
+        raise TypeError("Callbacks config must be a DictConfig!")
+
+    for _, cb_conf in callbacks_cfg.items():
+        if isinstance(cb_conf, DictConfig) and "_target_" in cb_conf:
+            callbacks.append(hydra.utils.instantiate(cb_conf))
+
+    return callbacks

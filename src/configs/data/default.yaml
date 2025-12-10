@@ -1,0 +1,3 @@
+dataset_path: ${paths.data_dir}
+num_workers: 8
+batch_size: 32

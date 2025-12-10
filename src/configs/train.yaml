@@ -1,0 +1,7 @@
+defaults: 
+  - _self_
+  - data: default
+  - model: graphmae
+  - callbacks: default
+  - logger: wandb
+  - trainer: default

@@ -1,0 +1,4 @@
+early_stopping:
+  monitor: "train/loss"
+  patience: 30
+  mode: "min"
