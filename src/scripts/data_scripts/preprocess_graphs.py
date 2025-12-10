@@ -88,11 +88,16 @@ def main():
 
     print(f"Saving processed graphs to {output_path}...")
     for name, g in tqdm(zip(filenames, graphs), total=len(graphs)):
-        is_empty = (g.x.sum(dim=1) == 0).int().unsqueeze(1)
-        g.x = torch.cat([g.x, is_empty], dim=1)
-        g.num_node_features = g.x.shape[1]
-        if hasattr(g, "feature_columns"):
-            g.feature_columns = list(g.feature_columns) + ["is_empty"]
+        # Check if 'is_empty' is already present to avoid duplication
+        if hasattr(g, "feature_columns") and "is_empty" in g.feature_columns:
+            pass
+        else:
+            is_empty = (g.x.sum(dim=1) == 0).int().unsqueeze(1)
+            g.x = torch.cat([g.x, is_empty], dim=1)
+            g.num_node_features = g.x.shape[1]
+            if hasattr(g, "feature_columns"):
+                g.feature_columns = list(g.feature_columns) + ["is_empty"]
+        
         save_path = output_path / name
         torch.save(g, save_path)
 

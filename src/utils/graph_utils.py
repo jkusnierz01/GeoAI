@@ -2,7 +2,7 @@ import os
 import torch
 import warnings
 from types import SimpleNamespace
-from graphmae.models import build_model
+from src.graphmae.models import build_model
 
 def load_graphs_from_folder(folder_path):
     if not os.path.isdir(folder_path):
