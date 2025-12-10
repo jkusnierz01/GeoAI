@@ -43,7 +43,7 @@ def load_model_from_checkpoint(checkpoint_path, num_features, num_classes, confi
     )
 
     model = build_model(args).to(device)
-    state = torch.load(checkpoint_path, map_location=device)
+    state = torch.load(checkpoint_path, map_location=device, weights_only=False)
     
     # Handle checkpoints with different formats
     if isinstance(state, dict) and ('model_state_dict' in state or 'state_dict' in state):
