@@ -1,11 +1,11 @@
 import torch
-import pytorch_lightning as pl
+import lightning as L
 import numpy as np
 from types import SimpleNamespace
 from src.graphmae.models import build_model
 from src.graphmae.utils import create_optimizer
 
-class GraphMAE(pl.LightningModule):
+class GraphMAE(L.LightningModule):
     def __init__(self, **kwargs):
         super().__init__()
         self.save_hyperparameters()

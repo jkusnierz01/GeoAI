@@ -1,21 +1,13 @@
 import argparse
-import os
 import numpy as np
 from tqdm import tqdm
 import torch
 import matplotlib.pyplot as plt
 from sklearn.manifold import TSNE
 
-from types import SimpleNamespace
-from omegaconf import OmegaConf
-
-from torch_geometric.nn import global_mean_pool
-from torch_geometric.utils import k_hop_subgraph
-
 from utils.graph_utils import (
     load_graphs_from_folder,
     prepare_graph,
-    build_model,
 )
 
 from utils.model_utils import load_model_from_checkpoint, get_k_hop_subgraph_embedding

@@ -1,13 +1,9 @@
 import argparse
 import os
-import numpy as np
 import torch
 import matplotlib.pyplot as plt
 from sklearn.decomposition import PCA
 import geopandas as gpd
-from types import SimpleNamespace
-from omegaconf import OmegaConf
-from graphmae.models import build_model
 import rootutils
 import contextily as cx
 from utils.model_utils import load_model_from_checkpoint

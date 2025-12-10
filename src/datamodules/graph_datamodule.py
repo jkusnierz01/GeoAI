@@ -1,8 +1,7 @@
 import lightning as L
-from lightning.pytorch.utilities.types import TRAIN_DATALOADERS
-from torch.utils.data import Dataset, DataLoader
+from torch.utils.data import Dataset
 from src.utils.graph_utils import load_graphs_from_folder, prepare_graph
-
+from torch_geometric.loader import DataLoader
 
 class GraphDataset(Dataset):
     def __init__(self, dataset_path: str) -> None:
@@ -28,4 +27,4 @@ class GraphDataModule(L.LightningDataModule):
         ...
 
     def train_dataloader(self):
-        return DataLoader(GraphDataset(self.dataset_path), batch_size=self.batch_size, num_workers=self.num_workers)
+        return DataLoader(GraphDataset(self.dataset_path), batch_size=self.batch_size, num_workers=self.num_workers, shuffle=True, pin_memory=True)

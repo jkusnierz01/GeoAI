@@ -1,2 +1,2 @@
-data_dir: ../data/dataset_aligned
-output_dir: ../../outputs
+data_dir: /mnt/data/kusnierz/geo/GeoAI/src/data/dataset_aligned
+output_dir: /mnt/data/kusnierz/geo/GeoAI/src/outputs

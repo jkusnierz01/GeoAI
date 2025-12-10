@@ -19,9 +19,9 @@ from src.utils.model_utils import instantiate_callbacks
 def main(cfg: DictConfig) -> None:
 
     logger = instantiate(cfg.logger)
-    datamodule = instantiate(cfg.datamodule)
+    datamodule = instantiate(cfg.data)
     
-    temp_dataset = GraphDataset(cfg.datamodule.data_dir)
+    temp_dataset = GraphDataset(cfg.data.dataset_path)
     num_features = temp_dataset[0].num_node_features
     
     model = instantiate(cfg.model, num_features=num_features)
