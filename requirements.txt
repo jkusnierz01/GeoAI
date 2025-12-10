@@ -17,3 +17,6 @@ jupyter
 scipy
 scikit-learn
 contextily
+hydra-core
+lightning
+rich

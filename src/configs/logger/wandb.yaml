@@ -1,0 +1,12 @@
+_target_: lightning.pytorch.loggers.wandb.WandbLogger
+# name: ""
+save_dir: "${paths.output_dir}"
+offline: False # bez neta
+id: null # do kontunuowania eksperymentu
+anonymous: null # enable anonymous logging
+project: "GeoAI"
+log_model: False # wrzucać lightning ckpts
+prefix: "" 
+group: ""
+tags: []
+job_type: ""

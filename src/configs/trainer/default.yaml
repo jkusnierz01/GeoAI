@@ -1,0 +1,6 @@
+_target_: lightning.pytorch.trainer.Trainer
+max_epochs: 500
+
+log_every_n_steps: 5
+
+accelerator: gpu
