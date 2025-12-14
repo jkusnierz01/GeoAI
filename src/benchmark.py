@@ -5,13 +5,14 @@ import json
 import os
 from datetime import datetime
 from sklearn.metrics import mean_absolute_error, r2_score, mean_squared_error, root_mean_squared_log_error
+from sklearn.decomposition import PCA
 import rootutils
 
 ROOT = rootutils.setup_root(search_from=__file__, indicator=".project_root", pythonpath=True)
 
 from src.utils.file_utils import load_and_merge_embeddings
 
-def run_experiment(model, dataset_loader, preprocess_fn, categorical_cols, cols_to_drop, use_dino, dino_path, use_graph, graph_path, target_col=None, output_file=None):
+def run_experiment(model, dataset_loader, preprocess_fn, categorical_cols, cols_to_drop, use_dino, dino_path, dino_pca, use_graph, graph_path, graph_pca, target_col=None, output_file=None):
     # Use dataset_loader.target if target_col is not provided
     target = target_col if target_col else dataset_loader.target
     
@@ -57,9 +58,42 @@ def run_experiment(model, dataset_loader, preprocess_fn, categorical_cols, cols_
     
     X_train = X_train_full[features].fillna(0)
     X_test = X_test_full[features].fillna(0)
+
+    # Apply PCA if specified
+    dino_features = [col for col in X_train.columns if col.startswith("dino_")]
+    if use_dino and dino_features and dino_pca > 0:
+        pca = PCA(n_components=min(dino_pca, len(dino_features)))
+        X_train_dino = X_train[dino_features]
+        X_test_dino = X_test[dino_features]
+
+        X_train_pca = pca.fit_transform(X_train_dino)
+        X_test_pca = pca.transform(X_test_dino)
+
+        for df, pca_data, name in zip([X_train, X_test], [X_train_pca, X_test_pca], ["train", "test"]):
+            for col in dino_features:
+                df.drop(col, axis=1, inplace=True)
+            for i in range(X_train_pca.shape[1]):
+                df[f"dino_pca_{i+1}"] = pca_data[:, i]
+
+    graph_features = [col for col in X_train.columns if col.startswith("graph_")]
+    if use_graph and graph_features and graph_pca > 0:
+        pca = PCA(n_components=min(graph_pca, len(graph_features)))
+        X_train_graph = X_train[graph_features]
+        X_test_graph = X_test[graph_features]
+
+        X_train_pca = pca.fit_transform(X_train_graph)
+        X_test_pca = pca.transform(X_test_graph)
+
+        for df, pca_data, name in zip([X_train, X_test], [X_train_pca, X_test_pca], ["train", "test"]):
+            for col in graph_features:
+                df.drop(col, axis=1, inplace=True)
+            for i in range(X_train_pca.shape[1]):
+                df[f"graph_pca_{i+1}"] = pca_data[:, i]
     
     y_train = train_gdf[target]
     y_test = test_gdf[target]
+
+    features = X_train.columns.tolist()
     
     print(f"Total Features: {len(features)}")
     
@@ -89,14 +123,6 @@ def run_experiment(model, dataset_loader, preprocess_fn, categorical_cols, cols_
     except ValueError:
         print("RMSLE:    Skipped (Target contains negative values?)")
 
-    # Feature Importance (Only for trees)
-    top_features = {}
-    if hasattr(reg, "feature_importances_"):
-        importances = pd.Series(reg.feature_importances_, index=features).sort_values(ascending=False)
-        print("\nTop 10 Most Important Features:")
-        print(importances.head(10))
-        top_features = importances.head(10).to_dict()
-
     if output_file:
         results = {
             "timestamp": datetime.now().isoformat(),
@@ -106,8 +132,7 @@ def run_experiment(model, dataset_loader, preprocess_fn, categorical_cols, cols_
             "r2": r2,
             "mae": mae,
             "rmse": rmse,
-            "rmsle": rmsle,
-            "top_features": top_features
+            "rmsle": rmsle
         }
         
         os.makedirs(os.path.dirname(output_file), exist_ok=True)
@@ -138,8 +163,10 @@ def main():
     parser.add_argument("--model_type", type=str, default="XGBRegressor", help="Model type")
     parser.add_argument("--use_dino", action="store_true", help="Use DINO embeddings")
     parser.add_argument("--dino_path", type=str, default="embeddings/dino_v3_embeddings.pkl")
+    parser.add_argument("--dino_pca", type=int, default=0, help="Number of PCA components for DINO embeddings, if 0, no PCA applied")
     parser.add_argument("--use_graph", action="store_true", help="Use GraphMAE embeddings")
     parser.add_argument("--graph_path", type=str, default="embeddings/graphmae_embeddings.pkl")
+    parser.add_argument("--graph_pca", type=int, default=0, help="Number of PCA components for GraphMAE embeddings, if 0, no PCA applied")
     parser.add_argument("--output_file", type=str, default="src/outputs/benchmarks/results.json", help="Path to save results JSON")
     
     args = parser.parse_args()
@@ -183,8 +210,10 @@ def main():
         cols_to_drop=drop,
         use_dino=args.use_dino,
         dino_path=args.dino_path,
+        dino_pca=args.dino_pca,
         use_graph=args.use_graph,
         graph_path=args.graph_path,
+        graph_pca=args.graph_pca,
         output_file=args.output_file
     )
 

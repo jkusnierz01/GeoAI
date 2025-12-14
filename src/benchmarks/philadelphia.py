@@ -30,14 +30,14 @@ def prep_dataset(df):
     
     actual_top = df[type_col].value_counts().head(5).index.tolist()
     
-    # type_counts = df[df[type_col].isin(actual_top)].pivot_table(
-    #     index='h3_index', 
-    #     columns=type_col, 
-    #     aggfunc='size', 
-    #     fill_value=0
-    # ).add_prefix('type_')
+    type_counts = df[df[type_col].isin(actual_top)].pivot_table(
+        index='h3_index', 
+        columns=type_col, 
+        aggfunc='size', 
+        fill_value=0
+    ).add_prefix('type_')
     
-    # hex_data = hex_data.join(type_counts, on='h3_index').fillna(0)
+    hex_data = hex_data.join(type_counts, on='h3_index').fillna(0)
 
     hex_data["lat"] = hex_data["h3_index"].apply(lambda x: h3.cell_to_latlng(x)[0])
     hex_data["lon"] = hex_data["h3_index"].apply(lambda x: h3.cell_to_latlng(x)[1])

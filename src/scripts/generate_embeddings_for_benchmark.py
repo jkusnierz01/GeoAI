@@ -5,6 +5,7 @@ import sys
 import os
 import numpy as np
 import rootutils
+from torch_geometric.utils import k_hop_subgraph
 
 # Setup root to allow imports from src
 ROOT = rootutils.setup_root(search_from=__file__, indicator=".project_root", pythonpath=True)
@@ -18,6 +19,7 @@ def main():
     parser.add_argument("--graph_file", type=str, required=True, help="Path to the graph file (.pt)")
     parser.add_argument("--output_file", type=str, required=True, help="Path to save pickle embeddings")
     parser.add_argument("--device", type=str, default="cuda" if torch.cuda.is_available() else "cpu")
+    parser.add_argument("--k_hop", type=int, default=1, help="K-hop size for the subgraph embedding")
 
     args = parser.parse_args()
     
@@ -37,57 +39,59 @@ def main():
     # 2. Load Model
     print(f"Loading model from {args.checkpoint_path}...")
     # We load the LightningModule
+    # Fix for PyTorch 2.6+ checkpoint unpickling errors with numpy objects
+    import numpy as np
+    torch.serialization.add_safe_globals([
+        np.dtype,
+        __import__('numpy')._core.multiarray.scalar,
+        __import__('numpy').dtypes.Float64DType
+    ])
     model = GraphMAE.load_from_checkpoint(args.checkpoint_path, weights_only=False)
     model.to(args.device)
     model.eval()
 
     # 3. Compute Embeddings
-    print("Computing embeddings...")
-    x = graph.x.to(args.device)
-    edge_index = graph.edge_index.to(args.device)
-    
-    # Check input dimension mismatch
+
+    print("Computing embeddings for each node with its k-hop neighborhood...")
+    x_full = graph.x.to(args.device)
+    edge_index_full = graph.edge_index.to(args.device)
+
+    # Check input dimension mismatch for the full graph (to know expected_dim)
     try:
         expected_dim = None
-        # Try to get expected dim from the first layer of the encoder
         if hasattr(model.model.encoder, 'gat_layers'):
-            # GAT
             layer = model.model.encoder.gat_layers[0]
             if hasattr(layer, 'lin_src'):
                 expected_dim = layer.lin_src.weight.shape[1]
-        
         if expected_dim is None:
-             # Fallback: try to infer from weight shape of first parameter that looks like input projection
-             for name, param in model.model.encoder.named_parameters():
-                 if 'weight' in name and param.shape[1] > 10: # heuristic
-                     expected_dim = param.shape[1]
-                     break
-        
-        if expected_dim is not None:
-            current_dim = x.shape[1]
-            if current_dim != expected_dim:
-                print(f"Warning: Input feature dimension mismatch! Graph: {current_dim}, Model: {expected_dim}")
+            for name, param in model.model.encoder.named_parameters():
+                if 'weight' in name and param.shape[1] > 10:
+                    expected_dim = param.shape[1]
+                    break
+    except Exception as e:
+        print(f"Could not determine expected input dimension: {e}")
+
+    embeddings_np = []
+    with torch.no_grad():
+        for node_idx in range(graph.num_nodes):
+            subset, sub_edge_index, mapping, _ = k_hop_subgraph(
+                node_idx, args.k_hop, edge_index_full, relabel_nodes=True
+            )
+            x_sub = x_full[subset]
+            # Pad/truncate if needed
+            if expected_dim is not None:
+                current_dim = x_sub.shape[1]
                 if current_dim < expected_dim:
                     diff = expected_dim - current_dim
-                    print(f"Padding input with {diff} zero columns...")
-                    padding = torch.zeros((x.shape[0], diff), device=x.device)
-                    x = torch.cat([x, padding], dim=1)
-                else:
-                    print(f"Truncating input to {expected_dim} columns...")
-                    x = x[:, :expected_dim]
-        else:
-            print("Could not determine expected input dimension from model structure.")
-
-    except Exception as e:
-        print(f"Could not verify input dimensions (proceeding anyway): {e}")
-
-    with torch.no_grad():
-        # Access the internal model's embed method
-        # GraphMAE wraps the model in self.model
-        # The internal model (e.g. PreModel) has an embed method
-        embeddings = model.model.embed(x, edge_index)
-    
-    embeddings_np = embeddings.cpu().numpy()
+                    padding = torch.zeros((x_sub.shape[0], diff), device=x_sub.device)
+                    x_sub = torch.cat([x_sub, padding], dim=1)
+                elif current_dim > expected_dim:
+                    x_sub = x_sub[:, :expected_dim]
+            sub_edge_index = sub_edge_index.to(args.device)
+            sub_embeds = model.model.embed(x_sub, sub_edge_index)
+            center_embed = sub_embeds[mapping].cpu().numpy()
+            embeddings_np.append(center_embed)
+    embeddings_np = np.vstack(embeddings_np)
     
     # 4. Map to H3 IDs
     h3_ids = None
@@ -111,7 +115,9 @@ def main():
     print(f"Mapped {len(result)} embeddings to H3 IDs.")
 
     # 5. Save
-    os.makedirs(os.path.dirname(args.output_file), exist_ok=True)
+    output_dir = os.path.dirname(args.output_file)
+    if output_dir:
+        os.makedirs(output_dir, exist_ok=True)
     with open(args.output_file, 'wb') as f:
         pickle.dump(result, f)
     

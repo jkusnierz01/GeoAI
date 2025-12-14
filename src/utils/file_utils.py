@@ -25,7 +25,7 @@ def load_and_merge_embeddings(df, embedding_path, prefix="emb"):
     emb_df = pd.DataFrame.from_dict(embeddings, orient='index')
     emb_df.columns = [f"{prefix}_{i}" for i in range(emb_df.shape[1])]
     emb_df.index.name = 'h3_index'
-    
+
     # Merge
     merged_df = df.merge(emb_df, on='h3_index', how='left')
     

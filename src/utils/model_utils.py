@@ -5,7 +5,7 @@ from types import SimpleNamespace
 from omegaconf import OmegaConf
 from torch_geometric.nn import global_mean_pool
 from torch_geometric.utils import k_hop_subgraph
-from utils.graph_utils import (
+from src.utils.graph_utils import (
     build_model
 )
 import hydra
@@ -45,11 +45,19 @@ def load_model_from_checkpoint(checkpoint_path, num_features, num_classes, confi
     )
 
     model = build_model(args).to(device)
+    import numpy as np
+    torch.serialization.add_safe_globals([
+        np.dtype,
+        __import__('numpy')._core.multiarray.scalar,
+        __import__('numpy').dtypes.Float64DType
+    ])
     state = torch.load(checkpoint_path, map_location=device)
     
     # Handle checkpoints with different formats
     if isinstance(state, dict) and ('model_state_dict' in state or 'state_dict' in state):
         sd = state.get('model_state_dict', state.get('state_dict', state))
+        # Remove 'model.' prefix if present in state_dict keys
+        sd = {k.replace('model.', '', 1) if k.startswith('model.') else k: v for k, v in sd.items()}
         model.load_state_dict(sd)
     else:
         model.load_state_dict(state)
@@ -72,10 +80,20 @@ def get_k_hop_subgraph_embedding(full_graph, model, start_node_idx, k_hop, devic
     edge_index = edge_index.to(device)
     batch = torch.zeros(x.size(0), dtype=torch.long, device=device)
 
-    with torch.no_grad():
-        node_embeds = model.embed(x, edge_index)
-    graph_embed = global_mean_pool(node_embeds, batch)
-    return graph_embed.cpu().numpy().flatten()
+    # Only print debug info for the first node processed per graph
+    if not hasattr(full_graph, '_debug_embedding_printed'):
+        with torch.no_grad():
+            node_embeds = model.model.embed(x, edge_index)
+        graph_embed = global_mean_pool(node_embeds, batch)
+        print(f"[DEBUG] Node embeddings (before pooling) for node {start_node_idx}: mean={node_embeds.mean().item():.4f}, std={node_embeds.std().item():.4f}")
+        print(f"[DEBUG] Graph embedding (after pooling) for node {start_node_idx}: mean={graph_embed.mean().item():.4f}, std={graph_embed.std().item():.4f}")
+        full_graph._debug_embedding_printed = True
+        return graph_embed.cpu().numpy().flatten()
+    else:
+        with torch.no_grad():
+            node_embeds = model.model.embed(x, edge_index)
+        graph_embed = global_mean_pool(node_embeds, batch)
+        return graph_embed.cpu().numpy().flatten()
 
 
 def instantiate_callbacks(callbacks_cfg: DictConfig):

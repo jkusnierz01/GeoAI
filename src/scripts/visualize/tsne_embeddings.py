@@ -4,14 +4,20 @@ from tqdm import tqdm
 import torch
 import matplotlib.pyplot as plt
 from sklearn.manifold import TSNE
+import rootutils
 
-from utils.graph_utils import (
+ROOT = rootutils.setup_root(search_from=__file__, indicator=".project_root", pythonpath=True)
+
+
+from src.utils.graph_utils import (
     load_graphs_from_folder,
     prepare_graph,
 )
 
-from utils.model_utils import load_model_from_checkpoint, get_k_hop_subgraph_embedding
-from utils.file_utils import get_prefix
+from src.utils.model_utils import get_k_hop_subgraph_embedding
+from src.utils.file_utils import get_prefix
+
+from src.models.graphmae_module import GraphMAE
 
 def main():
     parser = argparse.ArgumentParser()
@@ -31,13 +37,11 @@ def main():
     unique_prefixes = sorted(set(prefixes))
     prefix_to_color_id = {p: i for i, p in enumerate(unique_prefixes)}
 
-    num_features = graphs[0].num_node_features
-    num_classes = max(g.y.max().item() for g in graphs) + 1
 
-    # Use the new load_model_from_checkpoint function
-    model = load_model_from_checkpoint(
-        args.model_path, num_features, num_classes, config_path="configs/defaults.yaml", device=device
-    )
+    print(f"Loading model from {args.model_path}...")
+    model = GraphMAE.load_from_checkpoint(args.model_path, weights_only=False)
+    model.to(device)
+    model.eval()
 
     embeddings = []
     color_ids = []

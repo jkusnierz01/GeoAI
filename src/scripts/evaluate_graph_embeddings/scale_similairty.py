@@ -7,8 +7,12 @@ from collections import defaultdict
 import torch
 from torch_geometric.nn import global_mean_pool
 
-from utils.graph_utils import load_graphs_from_folder, prepare_graph
-from utils.model_utils import load_model_from_checkpoint, get_k_hop_subgraph_embedding
+import rootutils
+
+ROOT = rootutils.setup_root(search_from=__file__, indicator=".project_root", pythonpath=True)
+
+from src.utils.graph_utils import load_graphs_from_folder, prepare_graph
+from src.utils.model_utils import load_model_from_checkpoint, get_k_hop_subgraph_embedding
 
 
 def covering_khop_for_resolution(k_hop_low_res, delta_levels):
@@ -186,13 +190,44 @@ def main():
         print("No graphs found. Exiting.")
         return
 
-    num_features = graphs[0].num_node_features
+
+    # Pad node features to match expected input dim (33) if needed
+    expected_num_features = 33  # Set to the value used during training
+    # Print input feature stats before padding/truncation for the first graph
+    if len(graphs) > 0:
+        x0 = graphs[0].x
+        print(f"[DEBUG] First graph input features before padding: shape={x0.shape}, mean={x0.mean().item():.4f}, std={x0.std().item():.4f}, min={x0.min().item():.4f}, max={x0.max().item():.4f}")
+    for g in graphs:
+        if g.x.shape[1] < expected_num_features:
+            diff = expected_num_features - g.x.shape[1]
+            padding = torch.zeros((g.x.shape[0], diff), device=g.x.device)
+            g.x = torch.cat([g.x, padding], dim=1)
+        elif g.x.shape[1] > expected_num_features:
+            g.x = g.x[:, :expected_num_features]
+
+    num_features = expected_num_features
     num_classes = max(g.y.max().item() for g in graphs) + 1
 
-    model = load_model_from_checkpoint(
-        args.model_path, num_features, num_classes,
-        config_path=args.config_path, device=device
-    )
+    print(f"Loading model from {args.model_path}...")
+    import numpy as np
+    torch.serialization.add_safe_globals([
+        np.dtype,
+        __import__('numpy')._core.multiarray.scalar,
+        __import__('numpy').dtypes.Float64DType
+    ])
+    from src.models.graphmae_module import GraphMAE
+    model = GraphMAE.load_from_checkpoint(args.model_path, weights_only=False)
+    model.to(device)
+    model.eval()
+
+    # Debug: print model parameter stats (only first layer)
+    printed = False
+    for name, param in model.named_parameters():
+        if not printed:
+            print(f"[DEBUG] {name}: mean={param.data.mean().item():.4f}, std={param.data.std().item():.4f}, min={param.data.min().item():.4f}, max={param.data.max().item():.4f}")
+            printed = True
+        if printed:
+            break
 
     results = process_dataset(args.dataset, model, device, args.samples_per_graph, args.base_k_hop)
     results.extend(process_random_pairs(graphs, model, device, args.random_pairs_per_graph, args.base_k_hop))
