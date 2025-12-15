@@ -1,2 +1,2 @@
-data_dir: /mnt/data/kusnierz/geo/GeoAI/src/data/dataset_aligned
-output_dir: /mnt/data/kusnierz/geo/GeoAI/src/outputs
+data_dir: /home/soltys/sztuczna_inteligencja/sem2/GEO/GeoAI/dataset_aligned
+output_dir: /home/soltys/sztuczna_inteligencja/sem2/GEO/GeoAI/outputs

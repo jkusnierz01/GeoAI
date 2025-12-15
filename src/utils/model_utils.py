@@ -85,8 +85,6 @@ def get_k_hop_subgraph_embedding(full_graph, model, start_node_idx, k_hop, devic
         with torch.no_grad():
             node_embeds = model.model.embed(x, edge_index)
         graph_embed = global_mean_pool(node_embeds, batch)
-        print(f"[DEBUG] Node embeddings (before pooling) for node {start_node_idx}: mean={node_embeds.mean().item():.4f}, std={node_embeds.std().item():.4f}")
-        print(f"[DEBUG] Graph embedding (after pooling) for node {start_node_idx}: mean={graph_embed.mean().item():.4f}, std={graph_embed.std().item():.4f}")
         full_graph._debug_embedding_printed = True
         return graph_embed.cpu().numpy().flatten()
     else:

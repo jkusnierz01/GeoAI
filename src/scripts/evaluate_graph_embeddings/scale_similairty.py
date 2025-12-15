@@ -36,7 +36,7 @@ def cosine_sim(a, b):
     return float(num / den)
 
 
-def process_dataset(dataset_path, model, device, samples_per_graph, base_k_hop):
+def process_dataset(dataset_path, model, device, samples_per_graph, base_k_hop, graphs=None):
     """
     Sample nodes per graph and compute multi-resolution embeddings.
     Starts from lowest resolution (largest area) and goes up.
@@ -48,10 +48,11 @@ def process_dataset(dataset_path, model, device, samples_per_graph, base_k_hop):
     k8 = covering_khop_for_resolution(k7, delta_levels=1)
     k9 = covering_khop_for_resolution(k7, delta_levels=2)
 
-    print(f"Using k-hops: res7={k7}, res8={k8}, res9={k9}")
 
-    graph_files = load_graphs_from_folder(dataset_path)
-    graphs = [prepare_graph(f) for f in graph_files]
+    print(f"Using k-hops: res7={k7}, res8={k8}, res9={k9}")
+    if graphs is None:
+        graph_files = load_graphs_from_folder(dataset_path)
+        graphs = [prepare_graph(f) for f in graph_files]
 
     for g_idx, graph in enumerate(tqdm(graphs, desc="graphs")):
         if graph.num_nodes == 0:
@@ -184,19 +185,34 @@ def main():
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"Using device: {device}")
 
+
+    import random
     graph_files = load_graphs_from_folder(args.dataset)
-    graphs = [prepare_graph(f) for f in graph_files]
+    # Extract city names from filenames (assume format: cityname_...)
+    city_to_files = {}
+    for f in graph_files:
+        base = os.path.basename(f)
+        city = base.split('_')[0]
+        city_to_files.setdefault(city, []).append(f)
+    all_cities = list(city_to_files.keys())
+    if len(all_cities) < 6:
+        print(f"Not enough cities found ({len(all_cities)}). Exiting.")
+        return
+    selected_cities = random.sample(all_cities, 6)
+    print(f"Selected cities: {selected_cities}")
+    selected_files = []
+    for city in selected_cities:
+        selected_files.extend(city_to_files[city])
+    graphs = [prepare_graph(f) for f in selected_files]
     if not graphs:
         print("No graphs found. Exiting.")
         return
-
 
     # Pad node features to match expected input dim (33) if needed
     expected_num_features = 33  # Set to the value used during training
     # Print input feature stats before padding/truncation for the first graph
     if len(graphs) > 0:
         x0 = graphs[0].x
-        print(f"[DEBUG] First graph input features before padding: shape={x0.shape}, mean={x0.mean().item():.4f}, std={x0.std().item():.4f}, min={x0.min().item():.4f}, max={x0.max().item():.4f}")
     for g in graphs:
         if g.x.shape[1] < expected_num_features:
             diff = expected_num_features - g.x.shape[1]
@@ -220,16 +236,7 @@ def main():
     model.to(device)
     model.eval()
 
-    # Debug: print model parameter stats (only first layer)
-    printed = False
-    for name, param in model.named_parameters():
-        if not printed:
-            print(f"[DEBUG] {name}: mean={param.data.mean().item():.4f}, std={param.data.std().item():.4f}, min={param.data.min().item():.4f}, max={param.data.max().item():.4f}")
-            printed = True
-        if printed:
-            break
-
-    results = process_dataset(args.dataset, model, device, args.samples_per_graph, args.base_k_hop)
+    results = process_dataset(args.dataset, model, device, args.samples_per_graph, args.base_k_hop, graphs=graphs)
     results.extend(process_random_pairs(graphs, model, device, args.random_pairs_per_graph, args.base_k_hop))
 
     summarize_stats(results)

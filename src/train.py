@@ -1,11 +1,8 @@
-
 import hydra
 from omegaconf import DictConfig
 import rootutils
 from hydra.utils import instantiate
 import wandb
-
-
 
 ROOT = rootutils.setup_root(search_from=__file__, indicator=".project_root", pythonpath=True)
 

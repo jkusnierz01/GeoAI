@@ -8,6 +8,7 @@ import torch.nn as nn
 from .gat import GAT
 from .gin import GIN
 from .loss_func import sce_loss
+import torch.nn.functional as F
 from ..utils import create_norm
 from torch_geometric.utils import dropout_edge
 from torch_geometric.utils import add_self_loops, remove_self_loops
@@ -161,6 +162,9 @@ class PreModel(nn.Module):
             criterion = nn.MSELoss()
         elif loss_fn == "sce":
             criterion = partial(sce_loss, alpha=alpha_l)
+        elif loss_fn == "sce+kl":
+            # Will handle both in mask_attr_prediction
+            criterion = None
         else:
             raise NotImplementedError
         return criterion
@@ -228,7 +232,18 @@ class PreModel(nn.Module):
         x_init = x[mask_nodes]
         x_rec = recon[mask_nodes]
 
-        loss = self.criterion(x_rec, x_init)
+        # Combined SCE and KL loss
+        if self.criterion is not None:
+            loss = self.criterion(x_rec, x_init)
+        else:
+            # SCE loss
+            sce = sce_loss(x_rec, x_init)
+            # KL divergence (use softmax for probabilities)
+            p = F.log_softmax(x_rec, dim=-1)
+            q = F.softmax(x_init, dim=-1)
+            kl = F.kl_div(p, q, reduction='batchmean')
+            # You can weight the losses if desired, e.g., loss = sce + 0.1 * kl
+            loss = sce + 3*kl
         return loss
 
     def embed(self, x, edge_index):
