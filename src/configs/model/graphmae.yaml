@@ -2,7 +2,7 @@ _target_: src.models.graphmae_module.GraphMAE
 
 num_heads: 2
 num_out_heads: 1
-num_hidden: 64
+num_hidden: 32
 num_layers: 3
 residual: true
 attn_drop: 0.1

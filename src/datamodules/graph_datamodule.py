@@ -3,37 +3,32 @@ from torch.utils.data import Dataset
 from src.utils.graph_utils import load_graphs_from_folder, prepare_graph
 from torch_geometric.loader import DataLoader
 
-
-from torch_geometric.data import Data
-import torch
-
 class GraphDataset(Dataset):
     def __init__(self, dataset_path: str) -> None:
         super().__init__()
         graph_files = load_graphs_from_folder(dataset_path)
-        graphs = [prepare_graph(f) for f in graph_files]
-        # Concatenate all graphs into a single large graph
-        # Assumes all graphs have the same feature dimension
-        x_list = []
-        edge_index_list = []
-        y_list = []
-        node_offset = 0
-        for g in graphs:
-            x_list.append(g.x)
-            y_list.append(g.y)
-            edge_index_list.append(g.edge_index + node_offset)
-            node_offset += g.x.size(0)
-        x = torch.cat(x_list, dim=0)
-        y = torch.cat(y_list, dim=0)
-        edge_index = torch.cat(edge_index_list, dim=1)
-        self.graph = Data(x=x, edge_index=edge_index, y=y)
+        self.graphs = []
+        expected_dim = None
+        for f in graph_files:
+            g = prepare_graph(f)
+            if hasattr(g, 'x') and g.x is not None:
+                if expected_dim is None:
+                    expected_dim = g.x.shape[1]
+                    print(f"[GraphDataset] Expected feature dim: {expected_dim}")
+                if g.x.shape[1] != expected_dim:
+                    print(f"[GraphDataset] Skipping {f}: feature dim {g.x.shape[1]} != expected {expected_dim}")
+                    continue
+            else:
+                print(f"[GraphDataset] Skipping {f}: missing 'x' attribute or None")
+                continue
+            self.graphs.append(g)
+        print(f"[GraphDataset] Loaded {len(self.graphs)} graphs with feature dim {expected_dim}")
 
     def __getitem__(self, index):
-        # Only one big graph
-        return self.graph
+        return self.graphs[index]
 
     def __len__(self):
-        return 1
+        return len(self.graphs)
 
 
 class GraphDataModule(L.LightningDataModule):

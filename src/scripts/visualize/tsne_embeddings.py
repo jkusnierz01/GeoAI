@@ -96,7 +96,7 @@ def main():
         )
         labels.append(prefix)
 
-    plt.legend(handles, labels, title="Graph Groups", loc="best")
+    plt.legend(handles, labels, title="Graph Groups", loc="center left", bbox_to_anchor=(1.02, 0.5))
     plt.savefig("tsne_embeddings.png", dpi=200, bbox_inches="tight")
 
 
