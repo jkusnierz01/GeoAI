@@ -209,7 +209,7 @@ def main():
         return
 
     # Pad node features to match expected input dim (33) if needed
-    expected_num_features = 35  # Set to the value used during training
+    expected_num_features = 32  # Set to the value used during training
     # Print input feature stats before padding/truncation for the first graph
     if len(graphs) > 0:
         x0 = graphs[0].x

@@ -5,7 +5,7 @@ from srai.datasets import PoliceDepartmentIncidentsDataset
 name = "SF Crime"
 dataset_loader = PoliceDepartmentIncidentsDataset()
 dataset_loader.target = 'count'
-RESOLUTION = 8
+RESOLUTION = 10
 
 def prep_dataset(df):
     df["h3_index"] = df.apply(lambda row: h3.latlng_to_cell(row.geometry.y, row.geometry.x, RESOLUTION), axis=1)

@@ -4,6 +4,7 @@ import numpy as np
 import json
 import os
 from datetime import datetime
+from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import mean_absolute_error, r2_score, mean_squared_error, root_mean_squared_log_error
 from sklearn.decomposition import PCA
 import rootutils
@@ -11,8 +12,9 @@ import rootutils
 ROOT = rootutils.setup_root(search_from=__file__, indicator=".project_root", pythonpath=True)
 
 from src.utils.file_utils import load_and_merge_embeddings
+from src.benchmarks.mlp import DeepRegressor
 
-def run_experiment(model, dataset_loader, preprocess_fn, categorical_cols, cols_to_drop, use_dino, dino_path, dino_pca, use_graph, graph_path, graph_pca, target_col=None, output_file=None):
+def run_experiment(model, dataset_loader, preprocess_fn, categorical_cols, cols_to_drop, use_dino, dino_path, dino_pca, use_graph, graph_path, graph_pca, target_col=None, output_file=None, only_embeddings=False, benchmark_name=None):
     # Use dataset_loader.target if target_col is not provided
     target = target_col if target_col else dataset_loader.target
     
@@ -54,10 +56,29 @@ def run_experiment(model, dataset_loader, preprocess_fn, categorical_cols, cols_
     if 'h3_index' in X_train_full.columns:
         drop_final.append('h3_index')
         
-    features = [c for c in X_train_full.columns if c not in drop_final]
-    
+    if only_embeddings:
+        features = []
+        if use_dino:
+            features += [c for c in X_train_full.columns if c.startswith("dino_") or c.startswith("dino_pca_")]
+        if use_graph:
+            features += [c for c in X_train_full.columns if c.startswith("graph_") or c.startswith("graph_pca_")]
+        if not features:
+            print("Warning: No embedding features selected. Please enable --use_dino and/or --use_graph.")
+    else:
+        features = [c for c in X_train_full.columns if c not in drop_final]
+
     X_train = X_train_full[features].fillna(0)
     X_test = X_test_full[features].fillna(0)
+
+    if isinstance(model, (DeepRegressor,)): # Add other NN models here if needed
+        print("Applying StandardScaler for DeepRegressor...")
+        scaler = StandardScaler()
+            
+        X_train_scaled = scaler.fit_transform(X_train)
+        X_test_scaled = scaler.transform(X_test)
+        
+        X_train = pd.DataFrame(X_train_scaled, columns=X_train.columns, index=X_train.index)
+        X_test = pd.DataFrame(X_test_scaled, columns=X_test.columns, index=X_test.index)
 
     # Apply PCA if specified
     dino_features = [col for col in X_train.columns if col.startswith("dino_")]
@@ -125,10 +146,13 @@ def run_experiment(model, dataset_loader, preprocess_fn, categorical_cols, cols_
 
     if output_file:
         results = {
+            "benchmark": benchmark_name,
             "timestamp": datetime.now().isoformat(),
             "model_type": type(model).__name__,
             "use_graph": use_graph,
             "use_dino": use_dino,
+            "use_only_embeddings": only_embeddings,
+            "num_features": len(features),
             "r2": r2,
             "mae": mae,
             "rmse": rmse,
@@ -168,6 +192,7 @@ def main():
     parser.add_argument("--graph_path", type=str, default="embeddings/graphmae_embeddings.pkl")
     parser.add_argument("--graph_pca", type=int, default=0, help="Number of PCA components for GraphMAE embeddings, if 0, no PCA applied")
     parser.add_argument("--output_file", type=str, default="src/outputs/benchmarks/results.json", help="Path to save results JSON")
+    parser.add_argument("--only_embeddings", action="store_true", help="Use only graph/dino embeddings, ignore benchmark features")
     
     args = parser.parse_args()
 
@@ -197,8 +222,7 @@ def main():
         from sklearn.linear_model import LinearRegression
         model = LinearRegression()
     elif args.model_type == "DeepRegressor":
-        from src.benchmarks.mlp import DeepRegressor
-        model = DeepRegressor(epochs=50, lr=0.001, batch_size=32)
+        model = DeepRegressor(epochs=100, lr=0.0005, batch_size=512)
     else:
         raise ValueError(f"Unknown model type: {args.model_type}")
 
@@ -214,7 +238,9 @@ def main():
         use_graph=args.use_graph,
         graph_path=args.graph_path,
         graph_pca=args.graph_pca,
-        output_file=args.output_file
+        output_file=args.output_file,
+        only_embeddings=args.only_embeddings,
+        benchmark_name=args.benchmark
     )
 
 if __name__ == "__main__":

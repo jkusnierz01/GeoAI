@@ -5,6 +5,7 @@ import torch.optim as optim
 import numpy as np
 from sklearn.base import BaseEstimator, RegressorMixin
 from sklearn.preprocessing import StandardScaler
+from tqdm import tqdm
 
 class SimpleMLP(nn.Module):
     def __init__(self, input_dim, hidden_dim=128):
@@ -66,17 +67,18 @@ class DeepRegressor(BaseEstimator, RegressorMixin):
         self.model.train()
         for epoch in range(self.epochs):
             total_loss = 0
-            for batch_X, batch_y in loader:
-                optimizer.zero_grad()
-                predictions = self.model(batch_X)
-                loss = criterion(predictions, batch_y)
-                loss.backward()
-                optimizer.step()
-                total_loss += loss.item()
-            
+            with tqdm(loader, desc=f"Epoch {epoch+1}/{self.epochs}", leave=False) as t:
+                for batch_X, batch_y in t:
+                    optimizer.zero_grad()
+                    predictions = self.model(batch_X)
+                    loss = criterion(predictions, batch_y)
+                    loss.backward()
+                    optimizer.step()
+                    total_loss += loss.item()
+                    t.set_postfix(loss=loss.item())
             # Print progress every 10 epochs
-            if (epoch + 1) % 10 == 0:
-                print(f"Epoch {epoch+1}/{self.epochs} - Loss: {total_loss / len(loader):.4f}")
+            if (epoch + 1) % 10 == 0 or epoch == self.epochs - 1:
+                print(f"Epoch {epoch+1}/{self.epochs} - Avg Loss: {total_loss / len(loader):.4f}")
                 
         return self
 

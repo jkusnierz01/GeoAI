@@ -56,7 +56,11 @@ def main():
         start_nodes = np.random.choice(num_nodes, args.samples_per_graph, replace=True)
 
         for s in tqdm(start_nodes, desc=f"{prefix}"):
-            emb = get_k_hop_subgraph_embedding(graph, model, s, args.k_hop, device)
+            try:
+                emb = get_k_hop_subgraph_embedding(graph, model, s, args.k_hop, device)
+            except IndexError as e:
+                print(f"[Error] IndexError for node {s} in graph {prefix}: {e}. Skipping.")
+                continue
             embeddings.append(emb)
             color_ids.append(color_id)
             file_groups.append(prefix)
