@@ -6,13 +6,19 @@ from sklearn.decomposition import PCA
 import geopandas as gpd
 import rootutils
 import contextily as cx
-from utils.model_utils import load_model_from_checkpoint
+
+import rootutils
+ROOT = rootutils.setup_root(search_from=__file__, indicator=".project_root", pythonpath=True)
+
+from src.utils.model_utils import load_model_from_checkpoint
+
+CITY = "warsaw"
 
 ROOT = rootutils.setup_root(search_from=".", indicator=".project_root", pythonpath=True)
-GRAPH_PATH = ROOT / "dataset_aligned/berlin_hexagons_res8.pt"
-GEOJSON_PATH = ROOT / "geodata/berlin_hexagons_res8.geojson"
-MODEL_PATH = ROOT / "outputs/2025-11-22/21-20-43/checkpoint.pt"
-CONFIG_PATH = ROOT / "outputs/2025-11-22/21-20-43/.hydra/config.yaml"
+GRAPH_PATH = ROOT / f"dataset_aligned/{CITY}_hexagons_res8.pt"
+GEOJSON_PATH = ROOT / f"data/geodata/{CITY}_hexagons_res8.geojson"
+MODEL_PATH = ROOT / "checkpoints/plain.ckpt"
+CONFIG_PATH = ROOT / "configs/defaults.yaml"
 
 def get_all_node_embeddings(graph, model, device):
     """Generuje embeddingi dla wszystkich węzłów w danym grafie."""
@@ -80,7 +86,7 @@ def main():
     ax.set_xticks([])
     ax.set_yticks([])
     
-    output_filename = f"semantic_map_with_basemap_{city_name}.png"
+    output_filename = f"semantic_maps/semantic_map_with_basemap_{CITY}.png"
     plt.savefig(output_filename, dpi=300, bbox_inches="tight")
     print(f"--- Map saved to: {output_filename} ---")
 

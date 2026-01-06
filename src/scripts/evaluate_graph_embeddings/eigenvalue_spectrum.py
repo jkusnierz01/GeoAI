@@ -10,13 +10,39 @@ from types import SimpleNamespace
 from omegaconf import OmegaConf
 from torch_geometric.nn import global_mean_pool
 from torch_geometric.utils import k_hop_subgraph
+import torch.nn.functional as F
 
-from utils.graph_utils import (
+import rootutils
+ROOT = rootutils.setup_root(search_from=__file__, indicator=".project_root", pythonpath=True)
+
+from src.utils.graph_utils import (
     load_graphs_from_folder,
     prepare_graph,
 )
-from utils.model_utils import load_model_from_checkpoint, get_k_hop_subgraph_embedding
-from utils.file_utils import get_prefix
+from src.utils.model_utils import load_model_from_checkpoint, get_k_hop_subgraph_embedding
+from src.utils.file_utils import get_prefix
+
+def compute_uniformity(embeddings, t=2):
+    """
+    Computes the Uniformity metric: log( E[ e^{ -t * ||x_i - x_j||^2 } ] )
+    
+    Args:
+        embeddings: (N, D) array or tensor
+        t: Temperature parameter (default 2, per Wang & Isola paper)
+    
+    Returns:
+        float: The uniformity score. Lower is better (more uniform).
+    """
+    if isinstance(embeddings, np.ndarray):
+        embeddings = torch.from_numpy(embeddings)
+    
+    embeddings = F.normalize(embeddings, p=2, dim=1)
+    
+    dist_matrix = torch.pdist(embeddings, p=2).pow(2)
+    
+    avg_potential = dist_matrix.mul(-t).exp().mean()
+    
+    return avg_potential.log().item()
 
 def compute_isotropy_metrics(embeddings):
     """
@@ -44,10 +70,22 @@ def compute_isotropy_metrics(embeddings):
     # 4. Simple Isotropy Measure (Min/Max ratio)
     isotropy_score = eigenvalues.min() / (eigenvalues.max() + 1e-9)
 
+    # 5. Uniformity Metric
+    uniformity_score_05 = compute_uniformity(embeddings, t=0.5)
+    uniformity_score_1 = compute_uniformity(embeddings, t=1)
+    uniformity_score_2 = compute_uniformity(embeddings, t=2)
+    uniformity_score_5 = compute_uniformity(embeddings, t=5)
+    uniformity_score_10 = compute_uniformity(embeddings, t=10)
+
     return {
         "eigenvalues": eigenvalues,
         "participation_ratio": participation_ratio,
-        "isotropy_score": isotropy_score
+        "isotropy_score": isotropy_score,
+        "uniformity_score_05": uniformity_score_05,
+        "uniformity_score_1": uniformity_score_1,
+        "uniformity_score_2": uniformity_score_2,
+        "uniformity_score_5": uniformity_score_5,
+        "uniformity_score_10": uniformity_score_10,
     }
 
 def plot_eigenvalue_spectrum(metrics, title_suffix="", save_path="eigenvalue_spectrum.png"):
@@ -161,6 +199,11 @@ def main():
     
     print(f"Effective Dimension (PR): {metrics['participation_ratio']:.4f}")
     print(f"Isotropy (Min/Max):       {metrics['isotropy_score']:.6f}")
+    print(f"Uniformity (t=0.5):      {metrics['uniformity_score_05']:.6f}")
+    print(f"Uniformity (t=1):        {metrics['uniformity_score_1']:.6f}")
+    print(f"Uniformity (t=2):        {metrics['uniformity_score_2']:.6f}")
+    print(f"Uniformity (t=5):        {metrics['uniformity_score_5']:.6f}")
+    print(f"Uniformity (t=10):       {metrics['uniformity_score_10']:.6f}")
 
     plot_eigenvalue_spectrum(
         metrics, 

@@ -1,3 +1,4 @@
+Scale similarity:
 7-8: n=900, mean=0.9695, std=0.0579, min=0.4940, max=1.0000
 7-9: n=900, mean=0.9666, std=0.0621, min=0.4786, max=1.0000
 8-9: n=900, mean=0.9955, std=0.0136, min=0.8766, max=1.0000
@@ -7,3 +8,16 @@ random_7-9: n=899, mean=0.5397, std=0.2781, min=-0.0594, max=1.0000
 random_8: n=899, mean=0.5471, std=0.2774, min=-0.0594, max=1.0000
 random_8-9: n=899, mean=0.5487, std=0.2772, min=-0.0594, max=1.0000
 random_9: n=899, mean=0.5514, std=0.2789, min=-0.0594, max=1.0000
+
+Embeddings geometry:
+Effective Dimension (PR): 9.0557
+Isotropy (Min/Max):       0.000099
+Uniformity (t=0.5):      -0.621760
+Uniformity (t=1):        -1.179933
+Uniformity (t=2):        -2.103647
+Uniformity (t=5):        -3.731169
+Uniformity (t=10):       -4.869919
+
+Distance vs cosine similarity:
+Pearson:  -0.1161
+Spearman: -0.1340

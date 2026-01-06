@@ -206,6 +206,8 @@ def main():
         from src.benchmarks.chicago_crime import name, prep_dataset, cats, drop, dataset_loader
     elif args.benchmark == "philadelphia_crime":
         from src.benchmarks.philadelphia import name, prep_dataset, cats, drop, dataset_loader
+    elif args.benchmark == "beijing_housing":
+        from src.benchmarks.beijing_housing import name, prep_dataset, cats, drop, dataset_loader
     else:
         raise ValueError(f"Unknown benchmark: {args.benchmark}")
 

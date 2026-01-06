@@ -20,3 +20,8 @@
 |  | DeepRegressor | **No** | 0.9609 | 30.40 | 68.02 | 0.5440 | 19 |
 |  | LinearRegression | Yes | 0.9608 | 28.99 | 68.08 | 0.5782 | 147 |
 |  | LinearRegression | **No** | 0.9634 | 24.07 | 65.83 | 0.3768 | 19 |
+| **beijing_housing** | DeepRegressor | **Yes** | 0.7943 | 69.68 | 105.09 | 0.3168 | 177 |
+|  | DeepRegressor | No | 0.7936 | 69.43 | 105.26 | 0.3157 | 49 |
+|  | LinearRegression | **Yes** | 0.6716 | 88.64 | 132.78 | 0.5658 | 177 |
+|  | LinearRegression | No | 0.6700 | 88.88 | 133.12 | 0.5732 | 49 |
+
