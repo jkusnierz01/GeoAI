@@ -122,10 +122,8 @@ class FlexibleModel(nn.Module):
         if self.use_embeddings:
             self.loc_fc = nn.Sequential(
                 nn.Linear(input_embedding_dim, 128),
-                nn.BatchNorm1d(128),
                 nn.ReLU(),
-                nn.Linear(128, 64),
-                nn.ReLU()
+                nn.Linear(128, 64)
             )
             fusion_dim = self.cnn_out_dim + 64
         else:
@@ -314,7 +312,7 @@ if __name__ == "__main__":
     parser.add_argument("--csv_file", type=str, default="eurosat_h3_index.csv", help="Main CSV with filenames and H3 indexes")
     parser.add_argument("--data_root", type=str, default="EuroSAT_MS", help="Image folder")
     parser.add_argument("--embedding_path", type=str, default=None, help="Path to .pkl/.csv with embeddings (optional)")
-    parser.add_argument("--epochs", type=int, default=3)
+    parser.add_argument("--epochs", type=int, default=10)
     parser.add_argument("--batch_size", type=int, default=32)
     parser.add_argument("--lr", type=float, default=0.001)
     
