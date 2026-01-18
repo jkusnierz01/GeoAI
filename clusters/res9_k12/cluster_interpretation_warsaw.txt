@@ -1,0 +1,98 @@
+CLUSTER INTERPRETATION REPORT FOR WARSAW
+==================================================
+
+Cluster 0:
+  Dominant Features (vs City Avg):
+    - landuse_industrial: 2.19x higher
+    - building_house: 1.58x higher
+    - building_office: 1.22x higher
+    - landuse_cemetery: 1.05x higher
+    - is_empty: 1.00x higher
+
+Cluster 1:
+  Dominant Features (vs City Avg):
+    - amenity_nightclub: 27.54x higher
+    - amenity_bar: 22.70x higher
+    - amenity_cinema: 20.47x higher
+    - amenity_theatre: 19.80x higher
+    - tourism_museum: 18.96x higher
+
+Cluster 2:
+  Dominant Features (vs City Avg):
+    - building_house: 1.93x higher
+    - is_empty: 1.00x higher
+    - aeroway_aerodrome: 0.90x higher
+    - highway_bus_stop: 0.44x higher
+    - amenity_place_of_worship: 0.39x higher
+
+Cluster 3:
+  Dominant Features (vs City Avg):
+    - landuse_industrial: 3.88x higher
+    - building_office: 2.70x higher
+    - is_empty: 1.00x higher
+    - highway_bus_stop: 0.90x higher
+    - shop_supermarket: 0.76x higher
+
+Cluster 4:
+  Dominant Features (vs City Avg):
+    - landuse_cemetery: 12.07x higher
+    - aeroway_aerodrome: 7.14x higher
+    - amenity_place_of_worship: 4.32x higher
+    - leisure_sports_centre: 4.25x higher
+    - amenity_hospital: 3.92x higher
+
+Cluster 5:
+  Dominant Features (vs City Avg):
+    - shop_greengrocer: 5.87x higher
+    - shop_bakery: 5.05x higher
+    - shop_alcohol: 5.03x higher
+    - railway_tram_stop: 4.97x higher
+    - amenity_library: 4.66x higher
+
+Cluster 6:
+  Dominant Features (vs City Avg):
+    - building_office: 3.94x higher
+    - railway_tram_stop: 2.53x higher
+    - aeroway_aerodrome: 2.34x higher
+    - tourism_hotel: 2.11x higher
+    - tourism_museum: 1.66x higher
+
+Cluster 7:
+  Dominant Features (vs City Avg):
+    - highway_bus_stop: 2.55x higher
+    - landuse_cemetery: 2.45x higher
+    - is_empty: 1.00x higher
+    - amenity_police: 0.96x higher
+    - amenity_place_of_worship: 0.60x higher
+
+Cluster 8:
+  Dominant Features (vs City Avg):
+    - landuse_industrial: 3.64x higher
+    - aeroway_aerodrome: 2.91x higher
+    - is_empty: 1.00x higher
+    - landuse_cemetery: 0.91x higher
+    - highway_bus_stop: 0.37x higher
+
+Cluster 9:
+  Dominant Features (vs City Avg):
+    - aeroway_aerodrome: 3.46x higher
+    - building_apartments: 2.85x higher
+    - amenity_hospital: 2.44x higher
+    - leisure_park: 1.68x higher
+    - amenity_place_of_worship: 1.67x higher
+
+Cluster 10:
+  Dominant Features (vs City Avg):
+    - building_apartments: 2.71x higher
+    - building_house: 2.21x higher
+    - leisure_playground: 1.63x higher
+    - amenity_pharmacy: 1.58x higher
+    - amenity_school: 1.55x higher
+
+Cluster 11:
+  Dominant Features (vs City Avg):
+    - building_house: 1.62x higher
+    - is_empty: 1.00x higher
+    - landuse_cemetery: 0.54x higher
+    - amenity_cinema: 0.38x higher
+    - amenity_place_of_worship: 0.34x higher

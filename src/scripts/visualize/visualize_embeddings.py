@@ -15,8 +15,8 @@ from src.utils.model_utils import load_model_from_checkpoint
 CITY = "warsaw"
 
 ROOT = rootutils.setup_root(search_from=".", indicator=".project_root", pythonpath=True)
-GRAPH_PATH = ROOT / f"dataset_aligned/{CITY}_hexagons_res8.pt"
-GEOJSON_PATH = ROOT / f"data/geodata/{CITY}_hexagons_res8.geojson"
+GRAPH_PATH = ROOT / f"dataset_aligned/{CITY}_hexagons_res9.pt"
+GEOJSON_PATH = ROOT / f"data/geodata/{CITY}_hexagons_res9.geojson"
 MODEL_PATH = ROOT / "checkpoints/plain.ckpt"
 CONFIG_PATH = ROOT / "configs/defaults.yaml"
 
@@ -86,7 +86,7 @@ def main():
     ax.set_xticks([])
     ax.set_yticks([])
     
-    output_filename = f"semantic_maps/semantic_map_with_basemap_{CITY}.png"
+    output_filename = f"semantic_map_with_basemap_{CITY}.png"
     plt.savefig(output_filename, dpi=300, bbox_inches="tight")
     print(f"--- Map saved to: {output_filename} ---")
 

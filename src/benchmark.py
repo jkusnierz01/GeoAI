@@ -224,7 +224,7 @@ def main():
         from sklearn.linear_model import LinearRegression
         model = LinearRegression()
     elif args.model_type == "DeepRegressor":
-        model = DeepRegressor(epochs=100, lr=0.0005, batch_size=512)
+        model = DeepRegressor(epochs=100, lr=0.001, batch_size=512)
     else:
         raise ValueError(f"Unknown model type: {args.model_type}")
 

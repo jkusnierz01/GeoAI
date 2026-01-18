@@ -8,7 +8,7 @@ from sklearn.preprocessing import StandardScaler
 from tqdm import tqdm
 
 class SimpleMLP(nn.Module):
-    def __init__(self, input_dim, hidden_dim=128):
+    def __init__(self, input_dim, hidden_dim=512):
         super(SimpleMLP, self).__init__()
         # 1. Smart Projection Layer (Compresses input -> hidden_dim)
         self.projection = nn.Linear(input_dim, hidden_dim)
@@ -16,12 +16,14 @@ class SimpleMLP(nn.Module):
         self.dropout = nn.Dropout(0.3) # Prevents overfitting on high-dim embeddings
         
         # 2. Processing Layers
-        self.fc2 = nn.Linear(hidden_dim, 64)
+        self.fc2 = nn.Linear(hidden_dim, 256)
         self.relu = nn.ReLU()
         
-        # 3. Output Head
-        self.output = nn.Linear(64, 1)
+        self.fc3 = nn.Linear(256, 128)
+        self.relu = nn.ReLU()
 
+        # 3. Output Head
+        self.output = nn.Linear(128, 1)  # Single output for regression
     def forward(self, x):
         # Apply projection
         x = self.projection(x)
@@ -31,6 +33,8 @@ class SimpleMLP(nn.Module):
         
         # Deep processing
         x = self.fc2(x)
+        x = self.relu(x)
+        x = self.fc3(x)
         x = self.relu(x)
         
         return self.output(x)
