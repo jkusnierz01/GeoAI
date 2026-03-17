@@ -313,7 +313,7 @@ if __name__ == "__main__":
     parser.add_argument("--data_root", type=str, default="EuroSAT_MS", help="Image folder")
     parser.add_argument("--embedding_path", type=str, default=None, help="Path to .pkl/.csv with embeddings (optional)")
     parser.add_argument("--epochs", type=int, default=10)
-    parser.add_argument("--batch_size", type=int, default=32)
+    parser.add_argument("--batch_size", type=int, default=1024)
     parser.add_argument("--lr", type=float, default=0.001)
     
     args = parser.parse_args()
