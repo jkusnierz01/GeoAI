@@ -7,8 +7,8 @@ from tqdm import tqdm
 from sentence_transformers import SentenceTransformer
 
 # --- Configuration ---
-INPUT_DIR = "data/text"
-OUTPUT_DIR = "data/embeddings"
+INPUT_DIR = "data/text/wikivoyager"
+OUTPUT_DIR = "data/embeddings/wikivoyager"
 MODEL_ID = "jinaai/jina-embeddings-v3"
 EMBEDDING_DIM = 128   # Target Matryoshka dimension
 BATCH_SIZE = 8        # Safe batch size for chunked processing
@@ -43,7 +43,7 @@ def main():
     # Enforce sequence length limit on the model
     model.max_seq_length = MAX_SEQ_LENGTH
 
-    csv_files = glob.glob(os.path.join(INPUT_DIR, "*_wiki_h3_*.csv"))
+    csv_files = glob.glob(os.path.join(INPUT_DIR, "*_h3_*.csv"))
     
     if not csv_files:
         print(f"No CSV files found in '{INPUT_DIR}'. Please check your paths.")

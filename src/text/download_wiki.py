@@ -152,7 +152,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Batch download Wikipedia articles using grid scanning.")
     
     parser.add_argument("--input_file", type=str, default="cities.csv", help="CSV with columns: city, lat, lon, radius")
-    parser.add_argument("--out", type=str, default="data/text", help="Output folder")
+    parser.add_argument("--out", type=str, default="data/text/eurosat", help="Output folder")
     parser.add_argument("--min_res", type=int, default=7, help="Minimum H3 resolution (default: 7)")
     parser.add_argument("--max_res", type=int, default=9, help="Maximum H3 resolution (default: 9)")
     
